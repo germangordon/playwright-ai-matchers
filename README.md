@@ -116,6 +116,22 @@ Reason:   The response discusses general greetings and does not address billing,
 Received: Hi! I'm here to help. What would you like to know today?
 ```
 
+## Example output
+
+**Passing test:**
+
+```
+✓ AI chatbot responds correctly to a billing question (6.3s)
+```
+
+**Failing test:**
+
+```
+Error: Expected response to mean something about "billing and pricing", but it didn't.
+Reason:   The response discusses general greetings and does not address billing, pricing, or payment topics.
+Received: Hi! I'm here to help. What would you like to know today?
+```
+
 ## How it works
 
 Each matcher sends the response text to **Claude Haiku** (`claude-haiku-4-5-20251001`) with a carefully crafted evaluation prompt. Claude returns `{ "pass": boolean, "reason": string }` which drives the assertion result and failure message.
