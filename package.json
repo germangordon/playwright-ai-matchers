@@ -24,6 +24,7 @@
     "llm"
   ],
   "license": "MIT",
+  "author": "German Gordon",
   "peerDependencies": {
     "@playwright/test": ">=1.40.0"
   },
