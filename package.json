@@ -1,0 +1,39 @@
+{
+  "name": "playwright-ai-matchers",
+  "version": "0.1.0",
+  "description": "AI-powered semantic matchers for Playwright's expect() — evaluate non-deterministic AI responses with Claude",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "ai",
+    "matchers",
+    "expect",
+    "anthropic",
+    "claude",
+    "llm"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "@playwright/test": ">=1.40.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": ">=0.20.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.0.0",
+    "playwright-ai-matchers": "file:.",
+    "typescript": "^5.7.0"
+  }
+}
