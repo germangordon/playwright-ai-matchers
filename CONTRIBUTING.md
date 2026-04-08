@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-git clone https://github.com/your-org/playwright-ai-matchers.git
+git clone https://github.com/germangordon/playwright-ai-matchers.git
 cd playwright-ai-matchers
 npm install
 ```
