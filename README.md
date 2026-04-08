@@ -16,12 +16,16 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 ## Setup
 
-Import the package once — either in your test file or in a global setup file:
+Import the package in `playwright.config.ts` to apply it to all tests:
 
 ```typescript
 // playwright.config.ts  (recommended — applies to all tests)
-import './node_modules/playwright-ai-matchers/dist';
-// or in a setup file referenced by globalSetup
+import { defineConfig } from '@playwright/test';
+import 'playwright-ai-matchers';
+
+export default defineConfig({
+  // your config here
+});
 ```
 
 Or per test file:
@@ -137,6 +141,10 @@ await expect(text).toBeHelpful();
 | Variable | Required | Description |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key |
+
+## Limitations
+
+Each matcher makes one API call to Claude at assertion time. Tests with many matchers will run slower and incur Anthropic API costs proportional to the number of assertions.
 
 ## License
 
