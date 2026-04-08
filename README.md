@@ -14,6 +14,13 @@ Set your Anthropic API key:
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
+## How it fits into your workflow
+
+1. A developer builds a feature with an AI chatbot
+2. You (the QA Engineer) write a test that opens the app, sends a message to the chatbot, and captures the response
+3. You use playwright-ai-matchers to assert that the response makes sense — not just that it appeared
+4. Playwright runs the test on every push, catching regressions automatically
+
 ## Setup
 
 Import the package in `playwright.config.ts` to apply it to all tests:
@@ -37,28 +44,23 @@ import 'playwright-ai-matchers';
 
 ## Usage
 
+You write the test. You decide what question the user asks, what criteria the response must meet, and what ground-truth context to check against. The library gives you the tools — the judgment is yours.
+
 ```typescript
 import { test, expect } from '@playwright/test';
 import 'playwright-ai-matchers';
 
-test('AI chatbot responds correctly to a billing question', async ({ page }) => {
+test('chatbot correctly answers a delivery status question', async ({ page }) => {
   await page.goto('https://your-app.com/chat');
-  await page.locator('#user-input').fill('How much does the Pro plan cost?');
-  await page.locator('#send-button').click();
-  await page.locator('.ai-response').waitFor();
+  await page.locator('.chat-input').fill('Where is my order?');
+  await page.locator('.send-button').click();
+  await page.locator('.chat-response').waitFor();
 
-  const response = await page.locator('.ai-response').textContent();
+  const response = await page.locator('.chat-response').textContent();
 
-  // Does the response relate to the right topic?
-  await expect(response).toMeanSomethingAbout('billing and pricing');
-
-  // Does it meet a plain-language criterion?
-  await expect(response).toSatisfy('should mention a specific price or redirect the user to the pricing page');
-
-  // Does it avoid making up facts not in the context?
-  await expect(response).not.toHallucinate('The pro plan costs $49/month');
-
-  // Is it actually useful to the user?
+  await expect(response).toMeanSomethingAbout('order status');
+  await expect(response).toSatisfy('should mention an order number or estimated delivery time');
+  await expect(response).not.toHallucinate('Order #4521 is on its way, arrives in 20 minutes');
   await expect(response).toBeHelpful();
 });
 ```
