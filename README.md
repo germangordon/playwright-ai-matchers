@@ -21,6 +21,8 @@ export ANTHROPIC_API_KEY=sk-ant-...
 3. You use playwright-ai-matchers to assert that the response makes sense — not just that it appeared
 4. Playwright runs the test on every push, catching regressions automatically
 
+> You write the test. You decide what question the user asks, what criteria the response must meet, and what ground-truth context to check against. The library gives you the tools — the judgment is yours.
+
 ## Setup
 
 Import the package in `playwright.config.ts` to apply it to all tests:
