@@ -1,171 +1,229 @@
-# playwright-ai-matchers
+# 🤖 Playwright AI Matchers v2.0
 
-AI-powered semantic matchers for Playwright's `expect()`. Uses the Anthropic API (Claude) to evaluate non-deterministic AI responses in your end-to-end tests.
+**Universal AI-Powered Semantic Assertions for Playwright — one API, three frontier providers, zero non-determinism.**
+
+[![npm version](https://img.shields.io/npm/v/playwright-ai-matchers.svg)](https://www.npmjs.com/package/playwright-ai-matchers)
+[![npm downloads](https://img.shields.io/npm/dm/playwright-ai-matchers.svg)](https://www.npmjs.com/package/playwright-ai-matchers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
+
+Drop-in matchers that extend `expect()` so your test suite can assert the *meaning* of AI-generated output — not just its shape. Stop chasing brittle regexes. Let a frontier model judge the response, then gate CI on the verdict.
+
+```typescript
+await expect(chatbotResponse).toSatisfy('mentions a specific, numeric price');
+await expect(chatbotResponse).not.toHallucinate(knowledgeBaseArticle);
+await expect(chatbotResponse).toIAHaveSentiment('empathetic');
+```
+
+---
+
+## Why v2.0?
+
+The v1 line shipped a Claude-only matcher set. v2.0 is a ground-up rewrite around a **provider-agnostic Strategy pattern** — same matchers, pick your LLM.
+
+### 🌐 Truly Agnostic
+First-class adapters for **Anthropic Claude**, **OpenAI**, and **Google Gemini**. Ship the same test suite across teams that standardize on different vendors — or A/B your evaluator to measure judge agreement.
+
+### 🧠 Deep Reasoning by Default
+v2.0 wires the matcher's `effort` knob straight into each provider's thinking surface: **Claude Opus 4.7 adaptive thinking**, **OpenAI o3 reasoning models**, **Gemini 2.0 Flash Thinking**. Semantic verdicts are backed by chain-of-thought — not a single-pass pattern match.
+
+### 💰 Cost-Efficient by Design
+- **Prompt Caching** on Claude: a ~4,800-token rubric is cached across every assertion in a run. 90%+ input-token cost reduction on repeat calls.
+- **Structured Outputs** on OpenAI (`json_schema` + `strict: true`) and Gemini (`responseSchema`): eliminates the malformed-JSON retry loop.
+- **Forced Tool Use** on Claude (`tool_choice: {type: "tool"}`): deterministic verdict shape, no regex parsing.
+
+### 🔒 Zero-Config, Full Retrocompat
+If your v1 suite had `ANTHROPIC_API_KEY` set, **it still works — nothing to change**. Drop in an `OPENAI_API_KEY` or `GOOGLE_API_KEY` and the factory auto-detects the new provider.
+
+---
+
+## Compatibility Matrix
+
+The matcher's `effort` option maps to a model tier inside each provider. Higher effort means deeper reasoning, higher quality, and higher cost — `low` is a fast screener, `xhigh` is the final-judgment tier.
+
+| `effort` | 🟣 Anthropic Claude       | 🟢 OpenAI                 | 🔵 Google Gemini            |
+| :------- | :------------------------ | :------------------------ | :-------------------------- |
+| `low`    | Opus 4.7 · effort=`low`   | `gpt-4o-mini`             | `gemini-2.5-flash-lite`     |
+| `medium` | Opus 4.7 · effort=`medium` *(default)* | `gpt-4o`     | `gemini-2.5-flash`          |
+| `high`   | Opus 4.7 · effort=`high`  | `o3-mini` · reasoning=`medium` | `gemini-2.5-pro`       |
+| `xhigh`  | Opus 4.7 · effort=`xhigh` | `o3` · reasoning=`high`   | `gemini-2.5-pro`            |
+
+> **Deep reasoning** kicks in at `high` and above across all providers. Below that, models run in fast single-pass mode.
+
+---
 
 ## Installation
 
 ```bash
-npm install playwright-ai-matchers @anthropic-ai/sdk
+npm install playwright-ai-matchers
 ```
 
-Set your Anthropic API key:
+Then install **only** the SDK for the provider(s) you plan to use:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+# Claude
+npm install @anthropic-ai/sdk
+
+# OpenAI
+npm install openai
+
+# Google Gemini
+npm install @google/generative-ai
 ```
 
-## How it fits into your workflow
+The provider SDKs are declared as **optional peer dependencies** — you don't pay for vendors you don't use.
 
-1. A developer builds a feature with an AI chatbot
-2. You (the QA Engineer) write a test that opens the app, sends a message to the chatbot, and captures the response
-3. You use playwright-ai-matchers to assert that the response makes sense — not just that it appeared
-4. Playwright runs the test on every push, catching regressions automatically
+### Setup
 
-> You write the test. You decide what question the user asks, what criteria the response must meet, and what ground-truth context to check against. The library gives you the tools — the judgment is yours.
-
-## Setup
-
-Import the package in `playwright.config.ts` to apply it to all tests:
+Import the package once in `playwright.config.ts` so all tests pick up the matchers:
 
 ```typescript
-// playwright.config.ts  (recommended — applies to all tests)
+// playwright.config.ts
 import { defineConfig } from '@playwright/test';
 import 'playwright-ai-matchers';
 
 export default defineConfig({
-  // your config here
+  // your Playwright config
 });
 ```
 
-Or per test file:
+### Auto-detection via Environment Variables
+
+The factory walks this priority chain on first use:
+
+| Priority | Env Var                               | Provider          |
+| :------- | :------------------------------------ | :---------------- |
+| 1        | `ANTHROPIC_API_KEY`                   | Claude Opus 4.7   |
+| 2        | `OPENAI_API_KEY`                      | OpenAI            |
+| 3        | `GOOGLE_API_KEY` *(or `GEMINI_API_KEY`)* | Google Gemini  |
+
+```bash
+# .env — set whichever you have, the library picks it up automatically
+export ANTHROPIC_API_KEY=sk-ant-...
+# or
+export OPENAI_API_KEY=sk-proj-...
+# or
+export GOOGLE_API_KEY=AIza...
+```
+
+### Forcing a Specific Provider
+
+If multiple keys are present, or you need to pin to a vendor for a specific run, override the default explicitly:
 
 ```typescript
-import { test, expect } from '@playwright/test';
-import 'playwright-ai-matchers';
+// e.g. in a global setup file
+import {
+  setDefaultProvider,
+  OpenAIProvider,
+  GeminiProvider,
+  ClaudeProvider,
+} from 'playwright-ai-matchers';
+
+// Force OpenAI globally, overriding env-based detection.
+setDefaultProvider(new OpenAIProvider({ defaultEffort: 'high' }));
 ```
+
+Or pin a single assertion:
+
+```typescript
+const gemini = new GeminiProvider();
+await expect(response).toSatisfy('mentions a refund policy', {
+  provider: gemini,
+  effort: 'xhigh',
+});
+```
+
+---
 
 ## Usage
 
-You write the test. You decide what question the user asks, what criteria the response must meet, and what ground-truth context to check against. The library gives you the tools — the judgment is yours.
+All matchers share the same shape: `(criterion, options?)`. The `options` object accepts `{ provider?, effort? }`.
+
+### `toSatisfy` — plain-language assertion
 
 ```typescript
 import { test, expect } from '@playwright/test';
-import 'playwright-ai-matchers';
 
-test('chatbot correctly answers a delivery status question', async ({ page }) => {
-  await page.goto('https://your-app.com/chat');
-  await page.locator('.chat-input').fill('Where is my order?');
-  await page.locator('.send-button').click();
-  await page.locator('.chat-response').waitFor();
+test('pricing bot quotes a real number', async ({ page }) => {
+  await page.goto('/chat');
+  await page.getByRole('textbox').fill('How much is the Pro plan?');
+  await page.getByRole('button', { name: 'Send' }).click();
 
-  const response = await page.locator('.chat-response').textContent();
+  const reply = await page.getByTestId('bot-message').innerText();
 
-  await expect(response).toMeanSomethingAbout('order status');
-  await expect(response).toSatisfy('should mention an order number or estimated delivery time');
-  await expect(response).not.toHallucinate('Order #4521 is on its way, arrives in 20 minutes');
-  await expect(response).toBeHelpful();
+  await expect(reply).toSatisfy('mentions a specific monthly price in USD', {
+    effort: 'high', // deep reasoning for the price-check gate
+  });
 });
 ```
 
-## Matchers
-
-### `toMeanSomethingAbout(topic: string)`
-
-Asserts the response meaningfully relates to the given topic.
+### `toIAHaveIntent` — communicative intent
 
 ```typescript
-await expect(response).toMeanSomethingAbout('refund policy');
-await expect(response).not.toMeanSomethingAbout('competitor products');
+test('outage page apologizes', async ({ page }) => {
+  await page.goto('/status');
+  const banner = await page.getByTestId('incident-banner').innerText();
+
+  await expect(banner).toIAHaveIntent(
+    'apologizing to users for an ongoing service outage',
+  );
+});
 ```
 
-### `toSatisfy(criterion: string)`
-
-Asserts the response satisfies a plain-language criterion. Write it like a requirement.
+### `toIAHaveSentiment` — emotional tone
 
 ```typescript
-await expect(response).toSatisfy('should acknowledge the user by name');
-await expect(response).toSatisfy('must not recommend any specific third-party service');
+test('support reply is empathetic', async ({ page }) => {
+  const reply = await triggerSupportFlow(page, 'I lost access to my account');
+
+  await expect(reply).toIAHaveSentiment('empathetic', { effort: 'medium' });
+});
 ```
 
-### `toHallucinate(context: string)`
+<details>
+<summary><b>Full matcher reference</b> — click to expand</summary>
 
-Asserts whether the response invents facts not present in the provided context. Typically used with `.not` to guard against hallucination.
+| Matcher                        | Signature                              | What it asserts                                                                 |
+| :----------------------------- | :------------------------------------- | :------------------------------------------------------------------------------ |
+| `toMeanSomethingAbout(topic)`  | `(topic, options?)`                    | The response is genuinely *about* `topic` (not a keyword match).                |
+| `toSatisfy(criterion)`         | `(criterion, options?)`                | Free-form plain-language assertion — the primary workhorse.                     |
+| `toHallucinate(context)`       | `(context, options?)`                  | Response contains claims not supported by `context`. Use with `.not` to gate.   |
+| `toBeHelpful()`                | `(options?)`                           | Not a refusal, error, empty string, or "I can't help with that" boilerplate.    |
+| `toIAHaveIntent(intent)`       | `(intent, options?)`                   | Response *enacts* the given communicative intent.                               |
+| `toIAHaveSentiment(sentiment)` | `(sentiment, options?)`                | Response conveys the given emotional tone.                                      |
 
-```typescript
-// Assert the chatbot didn't invent facts outside our knowledge base snippet
-await expect(response).not.toHallucinate(
-  'Our Pro plan is $49/month. Our Enterprise plan has custom pricing.'
-);
+All matchers support `.not` for negation and accept `{ provider, effort }` as the final argument.
 
-// Assert that a response about a fictional topic does hallucinate
-await expect(response).toHallucinate('');
-```
+</details>
 
-### `toBeHelpful()`
+---
 
-Asserts the response is a genuine, useful answer — not an error message, a flat refusal, or an empty reply.
+## Observability — Rich Failure Messages
 
-```typescript
-await expect(response).toBeHelpful();
-await expect(errorFallback).not.toBeHelpful();
-```
-
-## Error messages
-
-When a matcher fails, the error shows exactly what went wrong:
+When an assertion fails, Playwright's error output shows the **model**, **effort tier**, the **one-sentence verdict reason**, and — when adaptive thinking is enabled — a **snippet of the model's reasoning**. Engineers triaging a failing test see *why* the verdict landed where it did, not just that it failed.
 
 ```
-Error: Expected response to mean something about "billing and pricing", but it didn't.
-Reason:   The response discusses general greetings and does not address billing, pricing, or payment topics.
-Received: Hi! I'm here to help. What would you like to know today?
+Error: Expected response to satisfy: "mentions a specific, numeric price", but it didn't.
+Model:     claude-opus-4-7 (effort: high)
+Reason:    Response discusses pricing in general terms but names no concrete number or currency.
+Reasoning: The response says "our plans are competitively priced" and "get in touch for a quote"
+           — both deflect from the price question. The criterion requires a specific numeric
+           value (e.g., "$49/month"), which is absent. Verdict: pass=false.
+Received:  "Our plans are competitively priced to fit teams of every size. Get in touch for a
+           tailored quote!"
+
+  at tests/pricing.spec.ts:14:27
 ```
 
-## Example output
+Every failed matcher call returns:
+- **`model`** — the exact model ID that rendered the verdict (useful for cross-vendor drift investigations)
+- **`effort`** — the tier the judge ran at, so you can rerun the same assertion at a higher tier
+- **`reason`** — a single-sentence, evidence-anchored justification
+- **`reasoning`** — the model's chain-of-thought (Claude adaptive thinking · summarized), truncated to 400 chars
+- **`received`** — the artifact under test, verbatim
 
-**Passing test:**
-
-```
-✓ AI chatbot responds correctly to a billing question (6.3s)
-```
-
-**Failing test:**
-
-```
-Error: Expected response to mean something about "billing and pricing", but it didn't.
-Reason:   The response discusses general greetings and does not address billing, pricing, or payment topics.
-Received: Hi! I'm here to help. What would you like to know today?
-```
-
-## How it works
-
-Each matcher sends the response text to **Claude Haiku** (`claude-haiku-4-5-20251001`) with a carefully crafted evaluation prompt. Claude returns `{ "pass": boolean, "reason": string }` which drives the assertion result and failure message.
-
-API calls are made at assertion time — one Claude call per matcher invocation. Failures include the AI's reasoning so you know exactly why an assertion failed.
-
-## TypeScript
-
-Full type declarations are included. After importing `playwright-ai-matchers`, all four matchers appear in autocomplete on `expect()`.
-
-```typescript
-import 'playwright-ai-matchers';
-
-// ✅ TypeScript knows about these:
-await expect(text).toMeanSomethingAbout('...');
-await expect(text).toSatisfy('...');
-await expect(text).not.toHallucinate('...');
-await expect(text).toBeHelpful();
-```
-
-## Environment variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key |
-
-## Limitations
-
-Each matcher makes one API call to Claude at assertion time. Tests with many matchers will run slower and incur Anthropic API costs proportional to the number of assertions.
+---
 
 ## License
 
-MIT
+MIT © German Gordon

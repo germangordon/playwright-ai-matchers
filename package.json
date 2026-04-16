@@ -1,7 +1,7 @@
 {
   "name": "playwright-ai-matchers",
-  "version": "0.1.0",
-  "description": "AI-powered semantic matchers for Playwright's expect() — evaluate non-deterministic AI responses with Claude",
+  "version": "2.0.0",
+  "description": "Provider-agnostic AI matchers for Playwright's expect() — ships with a Claude Opus 4.7 adapter using prompt caching, adaptive thinking, and forced tool use",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -26,15 +26,28 @@
   "license": "MIT",
   "author": "German Gordon",
   "peerDependencies": {
-    "@playwright/test": ">=1.40.0"
+    "@google/generative-ai": ">=0.21.0",
+    "@playwright/test": ">=1.40.0",
+    "openai": ">=4.60.0"
+  },
+  "peerDependenciesMeta": {
+    "openai": {
+      "optional": true
+    },
+    "@google/generative-ai": {
+      "optional": true
+    }
   },
   "dependencies": {
-    "@anthropic-ai/sdk": ">=0.20.0"
+    "@anthropic-ai/sdk": ">=0.85.0"
   },
   "devDependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@playwright/test": "^1.49.0",
     "@types/node": "^22.0.0",
+    "openai": "^4.77.0",
     "playwright-ai-matchers": "file:.",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0"
   }
 }
