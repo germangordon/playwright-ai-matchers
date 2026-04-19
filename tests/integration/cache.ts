@@ -8,7 +8,7 @@
  * The cached prefix is the SHARED_SYSTEM_PROMPT (~4,800 tokens) — prompt
  * caching on Opus 4.7 requires a ≥4,096-token prefix to activate.
  *
- * Run with:   npx tsx tests/integration/cache.spec.ts
+ * Run with:   npx tsx tests/integration/cache.ts
  */
 
 import { ClaudeProvider, type EvalResult } from '../../src';

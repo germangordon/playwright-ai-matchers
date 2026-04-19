@@ -9,7 +9,7 @@
  *      reasoning text in the response payload — that is a provider-side
  *      limitation, not a bug in this library, and is documented as such.
  *
- * Run with:   npx tsx tests/integration/providers.spec.ts
+ * Run with:   npx tsx tests/integration/providers.ts
  */
 
 import {

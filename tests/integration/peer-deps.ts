@@ -15,7 +15,7 @@
  *
  * We restore on every exit path (normal completion, error, SIGINT).
  *
- * Run with:   npx tsx tests/integration/peer-deps.spec.ts
+ * Run with:   npx tsx tests/integration/peer-deps.ts
  */
 
 import fs from 'node:fs';
