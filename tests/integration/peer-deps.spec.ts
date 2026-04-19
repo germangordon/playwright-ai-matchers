@@ -21,6 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { AIProviderError, OpenAIProvider, GeminiProvider } from '../../src';
+import type { AIProvider } from '../../src';
 
 const NODE_MODULES = path.resolve(__dirname, '../../node_modules');
 
@@ -85,7 +86,7 @@ async function testMissingSDK(params: {
   pkg: string;
   envKey: string;
   fakeKey: string;
-  build: () => { evaluate: (...args: unknown[]) => Promise<unknown> };
+  build: () => AIProvider;
   expectedHints: string[];
 }): Promise<void> {
   console.log(`\n━━━ ${params.label} — simulating missing \`${params.pkg}\` ━━━`);
