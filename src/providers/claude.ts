@@ -83,7 +83,7 @@ export class ClaudeProvider implements AIProvider {
         },
       ],
       tools: [SUBMIT_EVALUATION_TOOL],
-      tool_choice: { type: 'tool', name: 'submit_evaluation' },
+      tool_choice: { type: 'auto' },
       messages: [{ role: 'user', content: userPrompt }],
       output_config: { effort: effortToApi(effort) },
     };
