@@ -1,126 +1,211 @@
- # Playwright AI Matchers 🤖🚀
+# Playwright AI Matchers
 
-  Potencia tus tests de Playwright con aserciones semánticas impulsadas por IA. 
-  La v2.0 es agnóstica de proveedores, permitiendo a los SDETs validar
-  comportamientos complejos de UI mediante lenguaje natural sin acoplarse a un  
-  único LLM.      
-                                                                              
-  ## 🌟 Novedades v2.0                                                        
+Aserciones semánticas para `expect()` de Playwright, impulsadas por LLMs. Validá **intenciones, veracidad, tono y significado** en lugar de strings exactos.
 
-  - **Multi-Provider:** Soporte nativo para Anthropic (Claude 3.5 Sonnet),      
-  OpenAI (GPT-4o / o3-mini) y Google Gemini (2.5).
-  - **Prompt Caching:** Implementación nativa del caching de Anthropic para     
-  reducir costos hasta un 90% en suites de regresión.                           
-  - **Deep Reasoning:** Modo `high` effort para validaciones que requieren    
-  razonamiento multi-paso sobre el DOM.                                         
-  - **Provider-Agnostic API:** Una única interfaz (`toPassAI`) que abstrae las
-  diferencias entre SDKs.                                                       
-                                                                              
-  ## 📦 Instalación                                                             
-                                                                              
-  ```bash                                                                     
-  npm install --save-dev playwright-ai-matchers                               
+```ts
+import { test, expect } from '@playwright/test';
+import 'playwright-ai-matchers';
 
-  Peer Dependencies                                                             
-  
-  Instala únicamente el SDK del proveedor que vayas a utilizar:                 
-                                                                              
-  # Anthropic (recomendado para suites grandes gracias al caching)              
-  npm install --save-dev @anthropic-ai/sdk                                      
-                                                                              
-  # OpenAI                                                                      
-  npm install --save-dev openai                                               
-                                                                                
-  # Google Gemini                                                             
-  npm install --save-dev @google/generative-ai                                
+test('el bot de soporte es empático', async () => {
+  const response = 'Lamento mucho la demora, ya escalé tu caso con prioridad.';
+  await expect(response).toIAHaveSentiment('empático');
+});
+```
 
-  ▎ Nota: @playwright/test >= 1.40 es requerido como peer dependency            
-  ▎ obligatoria.
-                                                                                
-  ⚙️  Configuración                                                              
-                                                                              
-  Crea un archivo .env en la raíz de tu proyecto con las credenciales del       
-  proveedor seleccionado:                                                     
-                                                                              
-  # Selecciona el proveedor activo: anthropic | openai | google
-  AI_PROVIDER=anthropic                                                         
-                                                                                
-  # API Keys (solo la que corresponda al proveedor activo)                      
-  ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxx                                     
-  OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx                                            
-  GOOGLE_API_KEY=AIzaxxxxxxxxxxxxxxxx                                           
-                                                                                
-  # Opcional: override del modelo por defecto                                   
-  AI_MODEL=claude-3-5-sonnet-20241022                                           
-                                                                                
-  🚀 Uso                                                                      
-                                                                                
-  1. Registrar los matchers                                                     
-                                                                              
-  En tu archivo de setup (playwright.config.ts o un fixture global):            
-                                                                              
-  import { expect } from '@playwright/test';                                    
-  import { aiMatchers } from 'playwright-ai-matchers';                        
-                                                                                
-  expect.extend(aiMatchers);
-                                                                                
-  2. Aserción estándar                                                          
-                                                                              
-  import { test, expect } from '@playwright/test';                              
-                                                                              
-  test('el checkout muestra el resumen de compra correctamente', async ({ page  
-  }) => {
-    await page.goto('/checkout');                                               
-                                                                                
-    const summary = page.locator('[data-testid="order-summary"]');            
-                                                                                
-    await expect(summary).toPassAI(                                             
-      'Debe mostrar el subtotal, los impuestos desglosados y el total final en 
-  formato de moneda'                                                            
-    );                                                                        
-  });                                                                           
-                                                                              
-  3. Aserción con Deep Reasoning (high effort)                                
+---
 
-  Para validaciones que requieren inferencia compleja (ej. consistencia de      
-  datos, lógica de negocio visual):
-                                                                                
-  test('el dashboard refleja coherencia entre KPIs y gráficos', async ({ page })
-   => {                                                                         
-    await page.goto('/dashboard');
-                                                                                
-    const dashboard = page.locator('#main-dashboard');                          
-                                                                              
-    await expect(dashboard).toPassAI(                                           
-      'La suma de las ventas mensuales en el gráfico de barras debe coincidir '
-  +                                                                             
-      'con el KPI "Ventas Totales" mostrado en la parte superior',
-      { effort: 'high' }                                                        
-    );                                                                          
-  });                                                                           
-                                                                                
-  📊 Matriz de Compatibilidad                                                 
-                                                                                
-  ┌─────────────────┬─────────────────┬────────────────────┬────────────────┐   
-  │     Feature     │   Anthropic     │ OpenAI (GPT-4o /   │ Google Gemini  │
-  │                 │  (Claude 3.5)   │      o3-mini)      │     (2.5)      │   
-  ├─────────────────┼─────────────────┼────────────────────┼────────────────┤   
-  │ Semantic        │       ✅        │         ✅         │       ✅       │
-  │ Matching        │                 │                    │                │   
-  ├─────────────────┼─────────────────┼────────────────────┼────────────────┤   
-  │ Prompt Caching  │   ✅ (nativo)   │  ⚠️  (automático)   │       ❌       │
-  ├─────────────────┼─────────────────┼────────────────────┼────────────────┤   
-  │ Deep Reasoning  │  ✅ (extended   │    ✅ (o3-mini)    │ ✅ (thinking)  │ 
-  │                 │     think)      │                    │                │   
-  ├─────────────────┼─────────────────┼────────────────────┼────────────────┤   
-  │ Vision /        │       ✅        │         ✅         │       ✅       │
-  │ Screenshots     │                 │                    │                │   
-  ├─────────────────┼─────────────────┼────────────────────┼────────────────┤   
-  │ Streaming       │       ✅        │         ✅         │       ✅       │
-  ├─────────────────┼─────────────────┼────────────────────┼────────────────┤   
-  │ Costo relativo  │       $$        │        $$$         │       $        │ 
-  └─────────────────┴─────────────────┴────────────────────┴────────────────┘   
-                                                                              
-  ---                                                                           
-  Creado con ❤️ por Germán Gordón                                             
-  ```   
+## ¿Por qué?
+
+Los matchers tradicionales (`toContain`, `toMatch`) se rompen contra la variabilidad de los LLMs. No pueden decirte si la respuesta **alucinó un dato**, si **mantiene el tono**, o si **cumple su objetivo** — solo si contiene caracteres.
+
+Esta librería agrega matchers que delegan la validación a un LLM evaluador (Claude, GPT o Gemini), devuelven `pass: boolean` y — cuando fallan — el **motivo exacto** de por qué fallaron.
+
+---
+
+## Instalación
+
+```bash
+npm install --save-dev playwright-ai-matchers
+```
+
+Peer dependencies (instalá **solo el proveedor que vas a usar**):
+
+```bash
+# Anthropic Claude (default, recomendado)
+npm install --save-dev @anthropic-ai/sdk
+
+# OpenAI
+npm install --save-dev openai
+
+# Google Gemini
+npm install --save-dev @google/generative-ai
+```
+
+Requiere `@playwright/test >= 1.40`.
+
+---
+
+## Configuración
+
+Exportá **una** API key del proveedor que quieras usar. La librería autodetecta cuál está disponible:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+# o
+export OPENAI_API_KEY=sk-...
+# o
+export GOOGLE_API_KEY=AIza...   # (alias: GEMINI_API_KEY)
+```
+
+En tu test, un solo import registra todos los matchers:
+
+```ts
+import 'playwright-ai-matchers';
+```
+
+No hace falta `expect.extend()` ni configurar nada más.
+
+---
+
+## Matchers disponibles
+
+Todos reciben un criterio en lenguaje natural y (opcional) `{ effort, provider }`.
+
+### `toSatisfy(criterion)`
+La respuesta cumple un criterio arbitrario expresado en lenguaje natural.
+
+```ts
+await expect(response).toSatisfy('explica la estructura de un JWT');
+```
+
+### `toMeanSomethingAbout(topic)`
+La respuesta trata genuinamente sobre un tema.
+
+```ts
+await expect(response).toMeanSomethingAbout('pricing');
+await expect(response).not.toMeanSomethingAbout('billing');
+```
+
+### `toHallucinate(context)`
+La respuesta inventa hechos no presentes en el contexto. Usalo con `.not` para asegurar fidelidad.
+
+```ts
+const groundTruth = 'La Primera Junta la presidió Cornelio Saavedra.';
+await expect(respuestaFiel).not.toHallucinate(groundTruth);
+await expect(respuestaInventada).toHallucinate(groundTruth);
+```
+
+### `toBeHelpful()`
+La respuesta es sustantiva — no es una negativa, un error, o una respuesta vacía.
+
+```ts
+await expect(response).toBeHelpful();
+```
+
+### `toIAHaveIntent(intent)`
+La respuesta expresa o ejecuta una intención comunicativa.
+
+```ts
+await expect(response).toIAHaveIntent('agendar una reunión con el usuario');
+```
+
+### `toIAHaveSentiment(sentiment)`
+La respuesta transmite un tono emocional.
+
+```ts
+await expect(response).toIAHaveSentiment('empático');
+```
+
+---
+
+## Effort levels
+
+Cada matcher acepta `{ effort: 'low' | 'medium' | 'high' | 'xhigh' }`. Default: `medium`.
+
+```ts
+await expect(response).toSatisfy('el razonamiento es válido', { effort: 'high' });
+```
+
+Más effort = más tokens de thinking = respuestas más confiables en casos ambiguos, a mayor costo y latencia.
+
+---
+
+## Proveedores
+
+Si solo exportás una API key, la librería la usa. Si querés forzar uno:
+
+```ts
+import { setDefaultProvider, ClaudeProvider } from 'playwright-ai-matchers';
+
+setDefaultProvider(new ClaudeProvider({ model: 'claude-opus-4-7' }));
+```
+
+También podés pasar un provider por matcher:
+
+```ts
+import { OpenAIProvider } from 'playwright-ai-matchers';
+
+await expect(response).toSatisfy('criterion', {
+  provider: new OpenAIProvider({ model: 'gpt-4o' }),
+});
+```
+
+| Feature         | Claude (Anthropic) | OpenAI | Gemini |
+|-----------------|:------------------:|:------:|:------:|
+| Semantic match  | ✅                 | ✅     | ✅     |
+| Prompt caching  | ✅ nativo          | ⚠️ auto | ❌    |
+| Thinking/reasoning | ✅ adaptive     | ✅     | ✅     |
+| Streaming       | ✅                 | ✅     | ✅     |
+
+El default es Claude Opus 4.7 por el caching y el thinking adaptativo (pensado para suites grandes).
+
+---
+
+## Costo y latencia
+
+Cada assertion hace **una llamada al LLM**, así que no es gratis ni instantáneo.
+
+- **Latencia**: ~1-3s por assertion con `effort: 'medium'`; 3-8s con `high`.
+- **Costo**: con Claude Opus 4.7 + prompt caching en suites repetidas, ~$0.01-0.03 por assertion. Con OpenAI/Gemini variar según modelo.
+- **CI**: configurá `workers: 1` o `2` si hitteás rate limits.
+
+---
+
+## Uso en CI (GitHub Actions)
+
+```yaml
+- name: Run Playwright tests
+  env:
+    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  run: npx playwright test
+```
+
+---
+
+## Troubleshooting
+
+**`no provider API key detected`**
+Exportá `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, o `GOOGLE_API_KEY` antes de correr los tests.
+
+**`Claude did not call submit_evaluation`**
+Rate limit o response truncada. Reintentá o bajá `effort` a `low`.
+
+**`Property 'toSatisfy' not found`**
+Falta el `import 'playwright-ai-matchers'` en el spec. El import es **side-effect**; sin él los matchers no se registran.
+
+**El matcher recibe un `Locator` en vez de string**
+Los matchers esperan `string`. Extrae el texto con `await locator.innerText()` antes.
+
+---
+
+## Ejemplos
+
+Ver `test/demo.spec.ts` para un demo con los 4 matchers principales contra strings fijos.
+
+Ver `examples/` para un test E2E real contra un chat con IA (DuckDuckGo).
+
+---
+
+## Licencia
+
+MIT © Germán Gordón
