@@ -1,12 +1,13 @@
 {
   "name": "playwright-ai-matchers",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0",
   "description": "Provider-agnostic AI matchers for Playwright's expect() — ships with a Claude Opus 4.7 adapter using prompt caching, adaptive thinking, and forced tool use",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
-    "src"
+    "src",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
