@@ -204,6 +204,8 @@ Ver `test/demo.spec.ts` para un demo con los 4 matchers principales contra strin
 
 Ver `examples/` para un test E2E real contra un chat con IA (DuckDuckGo).
 
+Ver [`docs/GUIDE.md`](docs/GUIDE.md) para la guía completa: cuándo usar cada matcher, patrones comunes (live web, APIs, RAG), CI, costos y troubleshooting.
+
 ---
 
 ## Licencia
