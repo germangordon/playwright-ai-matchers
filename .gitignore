@@ -4,3 +4,4 @@ dist/
 test-results/
 mcp-server/
 *.tgz
+.playwright-ai-cache/

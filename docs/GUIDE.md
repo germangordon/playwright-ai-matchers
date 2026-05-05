@@ -1,44 +1,44 @@
-# Guía de uso — playwright-ai-matchers
+# Usage Guide — playwright-ai-matchers
 
-Tutorial paso a paso para testear outputs de IA con `expect()` de Playwright.
+Step-by-step guide for testing AI outputs with Playwright's `expect()`.
 
-Esta guía asume que ya conocés Playwright. Si venís del README y querés profundizar, estás en el lugar correcto.
+This guide assumes you already know Playwright. If you came from the README and want to go deeper, you're in the right place.
 
 ---
 
-## 1. El problema que resolvemos
+## 1. The problem we solve
 
-Los matchers tradicionales validan **caracteres**, no **significado**:
+Traditional matchers validate **characters**, not **meaning**:
 
 ```ts
-// Frágil: se rompe si el LLM cambia una coma
-await expect(response).toContain('Tu pedido fue enviado el martes');
+// Fragile: breaks if the LLM changes a comma
+await expect(response).toContain('Your order was shipped on Tuesday');
 ```
 
-Con outputs de LLM, eso falla en producción todo el tiempo. El modelo dice *"Despachamos tu pedido el martes"* y el test cae. La intención es la misma; el string no.
+With LLM outputs, that fails in production all the time. The model says *"We dispatched your order on Tuesday"* and the test fails. The intent is the same; the string isn't.
 
-`playwright-ai-matchers` agrega matchers que **validan el significado**:
+`playwright-ai-matchers` adds matchers that **validate meaning**:
 
 ```ts
 await expect(response).toSatisfy(
-  'confirma que el pedido fue despachado y da una fecha',
+  'confirms the order was dispatched and provides a date',
 );
 ```
 
-Por debajo, un LLM evaluador (Claude por default) lee la respuesta, decide pass/fail, y — cuando falla — te devuelve **la razón en lenguaje natural**.
+Under the hood, an evaluator LLM (Claude by default) reads the response, decides pass/fail, and — on failure — returns **a human-readable reason** explaining why.
 
 ---
 
-## 2. Instalación
+## 2. Installation
 
 ```bash
 npm install --save-dev playwright-ai-matchers
 ```
 
-Elegí **un** proveedor e instalalo como peer:
+Pick **one** provider and install it as a peer dependency:
 
 ```bash
-# Anthropic Claude (default, recomendado por caching + thinking adaptativo)
+# Anthropic Claude (default, recommended for prompt caching + adaptive thinking)
 npm install --save-dev @anthropic-ai/sdk
 
 # OpenAI
@@ -46,133 +46,139 @@ npm install --save-dev openai
 
 # Google Gemini
 npm install --save-dev @google/generative-ai
+
+# Ollama (local, no API key needed — just run `ollama serve`)
+# No extra package required
 ```
 
-Requiere `@playwright/test >= 1.40`.
+Requires `@playwright/test >= 1.40`.
 
 ---
 
-## 3. Configuración
+## 3. Setup
 
-Exportá la API key del proveedor elegido:
+Export the API key for your chosen provider:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-# o OPENAI_API_KEY, o GOOGLE_API_KEY
+# or OPENAI_API_KEY, or GOOGLE_API_KEY
 ```
 
-En el spec, un solo import registra todos los matchers:
+In your spec, a single import registers all matchers:
 
 ```ts
 import { test, expect } from '@playwright/test';
 import 'playwright-ai-matchers';
 ```
 
-El import es **side-effect**: sin él los matchers no existen.
+The import is **side-effect**: without it, the matchers don't exist.
 
 ---
 
-## 4. Los 6 matchers — cuándo usar cada uno
+## 4. The 6 matchers — when to use each
 
-| Matcher | Qué valida | Cuándo usarlo |
+| Matcher | What it validates | When to use it |
 |---|---|---|
-| `toSatisfy(criterio)` | Criterio arbitrario en lenguaje natural | Caso genérico, default para casi todo |
-| `toMeanSomethingAbout(tema)` | La respuesta trata sobre un tema | Validar ruteo: "¿el bot entendió que era una consulta de pricing?" |
-| `toHallucinate(contexto)` | La respuesta inventa datos fuera del contexto | RAG, agentes, cualquier flujo donde fidelidad importa (usalo con `.not`) |
-| `toBeHelpful()` | La respuesta es sustantiva, no vacía | Detectar refusals, errores, respuestas cortas inútiles |
-| `toIAHaveIntent(intento)` | La respuesta ejecuta una intención comunicativa | Agentes: ¿realmente está agendando? ¿escalando? ¿disculpándose? |
-| `toIAHaveSentiment(tono)` | La respuesta transmite un tono emocional | Chatbots de soporte, validar tono de marca |
+| `toSatisfy(criterion)` | Arbitrary plain-language criterion | Generic case, default for most things |
+| `toMeanSomethingAbout(topic)` | Response is about a topic | Routing validation: "did the bot understand this was a pricing question?" |
+| `toHallucinate(context)` | Response invents facts outside the context | RAG, agents, any flow where fidelity matters (use with `.not`) |
+| `toBeHelpful()` | Response is substantive, not empty | Detect refusals, errors, short useless replies |
+| `toHaveIntent(intent)` | Response performs a communicative intent | Agents: is it actually scheduling? Escalating? Apologizing? |
+| `toHaveSentiment(tone)` | Response conveys an emotional tone | Support chatbots, brand tone validation |
 
-### `toSatisfy` — el más flexible
+### `toSatisfy` — the most flexible
 
 ```ts
 await expect(response).toSatisfy(
-  'explica la estructura de un JWT y cómo se transmite',
+  'explains the structure of a JWT and how it is transmitted',
 );
 ```
 
-Regla: escribí el criterio **literal y específico**. "Explica bien" no sirve — "explica las tres partes del JWT y menciona el header Authorization" sí.
+Rule: write the criterion **literal and specific**. "Explains well" is useless — "explains the three parts of a JWT and mentions the Authorization header" works.
 
-### `toMeanSomethingAbout` — para ruteo
+### `toMeanSomethingAbout` — for routing
 
 ```ts
 await expect(response).toMeanSomethingAbout('pricing');
 await expect(response).not.toMeanSomethingAbout('billing');
 ```
 
-Útil cuando testeás un clasificador de intents o un router de chatbot.
+Useful when testing an intent classifier or chatbot router.
 
-### `toHallucinate` — el matcher más vendedor
+### `toHallucinate` — the money matcher
 
 ```ts
-const groundTruth = 'El plan Pro cuesta $20/mes. No hay plan Enterprise público.';
+const groundTruth = 'The Pro plan costs $20/month. There is no public Enterprise plan.';
 
-// Asegurar fidelidad: lo normal
+// Assert fidelity: the normal case
 await expect(respuesta).not.toHallucinate(groundTruth);
 
-// O validar que detectás una alucinación inyectada
+// Or validate that you catch an injected hallucination
 await expect(respuestaInventada).toHallucinate(groundTruth);
 ```
 
-Casi siempre lo usás con `.not`: afirmás que la respuesta **no** inventa nada fuera del `groundTruth`.
+You'll almost always use this with `.not`: asserting that the response **does not** invent anything outside the `groundTruth`.
 
-### `toBeHelpful` — detectar respuestas vacías
+### `toBeHelpful` — detect empty responses
 
 ```ts
 await expect(response).toBeHelpful();
 ```
 
-Falla contra *"Sorry, I can't help with that"* o *"Great question!"* sin sustancia. No falla contra refusals **con alternativa** (*"No puedo procesarlo, pero podés ir a Settings → Billing"*).
+Fails against *"Sorry, I can't help with that"* or *"Great question!"* with no substance. Does **not** fail against refusals **with an alternative** (*"I can't process it directly, but you can go to Settings → Billing"*).
 
-### `toIAHaveIntent` — para agentes
-
-```ts
-await expect(response).toIAHaveIntent('agendar una reunión con el usuario');
-```
-
-Intent = qué está **haciendo** la respuesta (agendando, escalando, disculpándose), no de qué tema habla.
-
-### `toIAHaveSentiment` — para tono
+### `toHaveIntent` — for agents
 
 ```ts
-await expect(response).toIAHaveSentiment('empático');
-await expect(response).toIAHaveSentiment('reassuring');
-await expect(response).not.toIAHaveSentiment('agresivo');
+await expect(response).toHaveIntent('schedule a meeting with the user');
 ```
 
-Las etiquetas pueden ser cualquier string descriptivo: "empático", "profesional y serio", "apologético y urgente".
+Intent = what the response is **doing** communicatively (scheduling, escalating, apologizing), not what topic it's about.
+
+### `toHaveSentiment` — for tone
+
+```ts
+await expect(response).toHaveSentiment('empathetic');
+await expect(response).toHaveSentiment('reassuring');
+await expect(response).not.toHaveSentiment('aggressive');
+```
+
+Labels can be any descriptive string: "empathetic", "professional and serious", "apologetic and urgent".
 
 ---
 
-## 5. Effort levels — ajustá costo vs confiabilidad
+## 5. Effort levels — tune cost vs reliability
 
 ```ts
-await expect(response).toSatisfy('criterio complejo', { effort: 'high' });
+await expect(response).toSatisfy('complex criterion', { effort: 'high' });
 ```
 
-| Effort | Cuándo usarlo |
+| Effort | When to use |
 |---|---|
-| `low` | Casos evidentes, alto volumen, CI rápido |
-| `medium` (default) | La mayoría de los casos |
-| `high` | Criterios ambiguos, casos borderline |
-| `xhigh` | Reviews críticas, compliance, evaluaciones legales |
+| `low` | Obvious cases, high volume, fast CI |
+| `medium` (default) | Most cases |
+| `high` | Ambiguous criteria, borderline cases |
+| `xhigh` | Critical reviews, compliance, legal evaluations |
 
-Más effort = más tokens de razonamiento del LLM = mejores veredictos en casos ambiguos, a mayor costo y latencia.
+More effort = more LLM reasoning tokens = better verdicts on ambiguous cases, at higher cost and latency.
 
 ---
 
-## 6. Proveedores — cuándo elegir cuál
+## 6. Providers — when to choose which
 
-| | Claude (default) | OpenAI | Gemini |
-|---|:---:|:---:|:---:|
-| Prompt caching | ✅ nativo | ⚠️ auto | ❌ |
-| Thinking adaptativo | ✅ | ✅ | ✅ |
-| Costo en suites grandes | $ | $$ | $ |
-| Setup | API key + SDK | API key + SDK | API key + SDK |
+| | Claude (default) | OpenAI | Gemini | Ollama |
+|---|:---:|:---:|:---:|:---:|
+| Prompt caching | ✅ native | ⚠️ auto | ❌ | ❌ |
+| Adaptive thinking | ✅ | ✅ | ✅ | ❌ |
+| Cost in large suites | $ | $$ | $ | Free |
+| Setup | API key + SDK | API key + SDK | API key + SDK | `ollama serve` |
+| Usage / reasoning in result | ✅ | ✅ | ✅ | ❌ |
 
-**Default: Claude Opus 4.7.** Prompt caching hace que después de las primeras assertions el rubric (~10k tokens) se cachee y las siguientes sean baratas.
+**Default: Claude Opus 4.7.** Prompt caching means that after the first assertions, the rubric (~10k tokens) is cached and subsequent calls are cheap.
 
-Para cambiar el default global:
+**Ollama limitation:** Ollama's OpenAI-compatible API does not expose token usage counts or chain-of-thought reasoning. `EvalResult.usage` and `EvalResult.reasoning` will be `undefined` when using `OllamaProvider`.
+
+To change the global default:
 
 ```ts
 import { setDefaultProvider, OpenAIProvider } from 'playwright-ai-matchers';
@@ -180,71 +186,96 @@ import { setDefaultProvider, OpenAIProvider } from 'playwright-ai-matchers';
 setDefaultProvider(new OpenAIProvider({ model: 'gpt-4o' }));
 ```
 
-Para un matcher puntual:
+For a single matcher:
 
 ```ts
-await expect(response).toSatisfy('criterio', {
+await expect(response).toSatisfy('criterion', {
   provider: new OpenAIProvider({ model: 'gpt-4o' }),
 });
 ```
 
 ---
 
-## 7. Patrones comunes
+## 7. Common patterns
 
-### Live web — scrapear y validar
+### Live web — scrape and validate
 
 ```ts
-test('la landing habla de lo que dice que habla', async ({ page }) => {
-  await page.goto('https://mi-sitio.com');
+test('the landing page says what it claims', async ({ page }) => {
+  await page.goto('https://my-site.com');
   await page.waitForLoadState('networkidle').catch(() => {});
   const hero = await page.locator('main').innerText();
 
-  await expect(hero).toSatisfy('menciona el producto y sus beneficios clave');
-  await expect(hero).toIAHaveIntent('atraer al visitante a un trial o demo');
+  await expect(hero).toSatisfy('mentions the product and its key benefits');
+  await expect(hero).toHaveIntent('attract the visitor to a trial or demo');
 });
 ```
 
-### Respuesta de API — JSON → string
+### API response — JSON → string
 
 ```ts
-test('el endpoint de /support responde con empatía', async ({ request }) => {
-  const r = await request.post('/support', { data: { issue: 'pedido atrasado' } });
+test('the /support endpoint responds with empathy', async ({ request }) => {
+  const r = await request.post('/support', { data: { issue: 'late order' } });
   const { message } = await r.json();
 
-  await expect(message).toIAHaveSentiment('empático');
+  await expect(message).toHaveSentiment('empathetic');
   await expect(message).toBeHelpful();
 });
 ```
 
-### Chatbot con contexto — validar fidelidad
+### Chatbot with context — validate fidelity
 
 ```ts
-test('el bot no inventa data fuera del catálogo', async () => {
-  const catalogo = readFileSync('./fixtures/catalogo.md', 'utf-8');
-  const respuesta = await chatbot.ask('¿cuánto cuesta el plan Pro?');
+test('the bot does not invent data outside the catalog', async () => {
+  const catalog = readFileSync('./fixtures/catalog.md', 'utf-8');
+  const answer = await chatbot.ask('how much is the Pro plan?');
 
-  await expect(respuesta).not.toHallucinate(catalogo);
-  await expect(respuesta).toMeanSomethingAbout('pricing');
+  await expect(answer).not.toHallucinate(catalog);
+  await expect(answer).toMeanSomethingAbout('pricing');
 });
 ```
 
-### El money shot — capturar la razón cuando falla
+### The money shot — capture the reason on failure
 
-Cuando un test falla, Playwright muestra algo así:
+When a test fails, Playwright shows something like:
 
 ```
-Error: Expected response to convey "agresivo" sentiment, but it didn't.
+Error: Expected response to convey "aggressive" sentiment, but it didn't.
 Model:     claude-opus-4-7 (effort: medium)
 Reason:    Tone is apologetic and empathetic — the opposite of aggressive register.
-Received:  "Lamento mucho la demora..."
+Received:  "I'm very sorry for the delay..."
 ```
 
-Ese `Reason` es oro para triage: te dice exactamente **por qué** falló, sin que tengas que re-ejecutar ni escarbar logs.
+That `Reason` is gold for triage: it tells you exactly **why** it failed, without re-running the test or digging through logs.
 
 ---
 
-## 8. CI (GitHub Actions)
+## 8. Middleware — intercept evaluations
+
+You can hook into evaluations for logging, PII redaction, text truncation, or custom post-processing:
+
+```ts
+import { setMiddleware } from 'playwright-ai-matchers';
+
+setMiddleware({
+  async beforeEvaluate(text, criteria, type) {
+    // Truncate long responses to save tokens
+    if (text.length > 4000) {
+      return { text: text.slice(0, 4000) + '…', criteria };
+    }
+    return { text, criteria };
+  },
+  async afterEvaluate(result) {
+    // Log every evaluation
+    console.log(`[${result.model}] ${result.pass ? 'PASS' : 'FAIL'}: ${result.reason}`);
+    return result;
+  },
+});
+```
+
+---
+
+## 9. CI (GitHub Actions)
 
 ```yaml
 - name: Run Playwright tests
@@ -253,57 +284,56 @@ Ese `Reason` es oro para triage: te dice exactamente **por qué** falló, sin qu
   run: npx playwright test
 ```
 
-**Tips para CI:**
+**CI tips:**
 
-- Bajá `workers` a `1` o `2` si te pegás con rate limits
-- Usá `effort: 'low'` en PRs de baja señal y `medium` en main
-- El caching de Claude funciona **dentro de una corrida** — no entre corridas, así que no optimices por ahí
-
----
-
-## 9. Costo y latencia — sé realista
-
-Cada assertion es **una llamada al LLM**:
-
-- **Latencia:** ~1-3s con `medium`, 3-8s con `high`
-- **Costo:** con Claude Opus 4.7 + caching, ~$0.01-0.03 por assertion en suites repetidas
-- **Volumen:** 500 assertions en CI diario = ~$5-15/mes, dependiendo del effort
-
-No uses estos matchers para validar cosas que un matcher tradicional ya valida bien. `toContain('error')` sigue siendo la herramienta correcta para chequear un string exacto.
+- Lower `workers` to `1` or `2` if you hit rate limits
+- Use `effort: 'low'` for low-signal PRs and `medium` on main
+- Claude's prompt caching works **within a run** — not across runs, so don't optimize for that
 
 ---
 
-## 10. Cuándo NO usar estos matchers
+## 10. Cost and latency — be realistic
 
-- **Strings exactos conocidos:** usá `toContain`, `toMatch`, `toEqual`. Son gratis e instantáneos.
-- **Listas de elementos del DOM:** usá los locators de Playwright.
-- **Schemas de JSON:** usá Zod, Ajv, o los matchers nativos de `expect.objectContaining`.
-- **Performance/latencia:** no. Estos matchers miden significado, no tiempo.
-- **Tests unitarios puros:** si podés testear sin LLM evaluador, hacelo. Reservá los AI matchers para cuando el output **es** LLM-generado.
+Each assertion is **one LLM call**:
+
+- **Latency:** ~1-3s with `medium`, 3-8s with `high`
+- **Cost:** with Claude Opus 4.7 + caching, ~$0.01-0.03 per assertion in repeated suites
+- **Volume:** 500 assertions in daily CI = ~$5-15/month, depending on effort
+
+Don't use these matchers for things a traditional matcher already validates well. `toContain('error')` is still the right tool for checking an exact string.
 
 ---
 
-## 11. Troubleshooting
+## 11. When NOT to use these matchers
 
-| Error | Causa | Solución |
+- **Known exact strings:** use `toContain`, `toMatch`, `toEqual`. They're free and instant.
+- **DOM element lists:** use Playwright locators.
+- **JSON schemas:** use Zod, Ajv, or native `expect.objectContaining` matchers.
+- **Performance/latency:** no. These matchers measure meaning, not time.
+- **Pure unit tests:** if you can test without an LLM evaluator, do it. Reserve AI matchers for when the output **is** LLM-generated.
+
+---
+
+## 12. Troubleshooting
+
+| Error | Cause | Solution |
 |---|---|---|
-| `no provider API key detected` | Falta env var | `export ANTHROPIC_API_KEY=...` |
-| `Claude did not call submit_evaluation` | Rate limit o truncación | Reintentá o bajá `effort` |
-| `Property 'toSatisfy' not found` | Falta el import side-effect | Agregá `import 'playwright-ai-matchers'` al spec |
-| El matcher recibe un `Locator` | Pasaste un locator en vez de string | Extraé texto con `await locator.innerText()` primero |
+| `no provider API key detected` | Missing env var | `export ANTHROPIC_API_KEY=...` |
+| `Claude did not call submit_evaluation` | Rate limit or truncation | Retry or lower `effort` |
+| `Property 'toSatisfy' not found` | Missing side-effect import | Add `import 'playwright-ai-matchers'` to spec |
+| `the '@anthropic-ai/sdk' package is required` | SDK not installed | `npm install @anthropic-ai/sdk` |
+| `the 'openai' package is required` | SDK not installed | `npm install openai` |
 
 ---
 
-## 12. Ejemplos en este repo
+## 13. Examples in this repo
 
-- `test/demo.spec.ts` — los 4 matchers principales contra strings fijos
-- `test/video-demo.spec.ts` — tour completo con un money shot al final (3 pasan, 1 falla a propósito)
-- `test/linkedin-demo.spec.ts` — demo live contra `anthropic.com`
-- `examples/ai-validation.spec.ts` — test E2E real contra DuckDuckGo Chat
+- `test/demo.spec.ts` — 4 main matchers against fixed strings
+- `examples/ai-validation.spec.ts` — real E2E test against DuckDuckGo Chat
 
-Corré el demo completo:
+Run the demo:
 
 ```bash
-set -a; source .env; set +a   # si usás un .env
-npx playwright test test/video-demo.spec.ts --reporter=list
+set -a; source .env; set +a   # if using a .env
+npx playwright test test/demo.spec.ts --reporter=list
 ```

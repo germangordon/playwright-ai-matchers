@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Typecheck & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify dist
+        run: |
+          for f in dist/index.js dist/index.d.ts dist/matchers.js dist/matchers.d.ts \
+                    dist/prompts.js dist/providers/claude.js dist/providers/openai.js \
+                    dist/providers/gemini.js dist/providers/cached.js; do
+            [ -s "$f" ] || { echo "Missing or empty: $f"; exit 1; }
+          done
+          echo "All dist files present."
+
+  integration-claude:
+    name: Integration — Claude
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache validation
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npx tsx tests/integration/cache.ts
+        continue-on-error: true
+
+      - name: Cross-provider contract
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npx tsx tests/integration/providers.ts
+
+      - name: Reasoning check
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npx tsx tests/integration/reasoning_check.ts

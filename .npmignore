@@ -1,6 +1,19 @@
+# Only dist/, src/, and CHANGELOG.md are published (see package.json "files")
+# This file excludes additional artifacts from the published tarball.
+
 .env
-tests/
-src/
 .github/
+.claude/
+.opencode/
+content/
+scripts/
+test-results/
+tests/
+examples/
+docs/
+AGENTS.md
+opencode.json
 tsconfig.json
+tsconfig.test.json
 *.log
+*.tgz

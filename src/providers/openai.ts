@@ -5,7 +5,7 @@ import type {
   EvalType,
   EvaluateOptions,
 } from './base';
-import { JSON_SYSTEM_PROMPT, buildUserPrompt } from '../prompts';
+import { buildSystemPrompt, buildUserPrompt } from '../prompts';
 import { AIProviderError } from '../errors';
 
 // Typed without importing the SDK statically so consumers who don't use OpenAI
@@ -71,6 +71,7 @@ const REASONING_EFFORT_MAP: Record<Effort, 'low' | 'medium' | 'high'> = {
 };
 
 export class OpenAIProvider implements AIProvider {
+  readonly id: string;
   private readonly apiKey: string | undefined;
   private readonly explicitClient: OpenAIClient | undefined;
   private readonly overrideModel: string | undefined;
@@ -87,6 +88,7 @@ export class OpenAIProvider implements AIProvider {
       ...DEFAULT_EFFORT_MODEL_MAP,
       ...(options.effortModelMap ?? {}),
     };
+    this.id = `openai:${this.overrideModel ?? 'effort-mapped'}`;
 
     if (!this.explicitClient && !this.apiKey) {
       throw new AIProviderError(
@@ -105,12 +107,13 @@ export class OpenAIProvider implements AIProvider {
     const model = this.overrideModel ?? this.effortModelMap[effort];
     const isReasoning = isReasoningModel(model);
     const client = await this.resolveClient();
+    const systemPrompt = buildSystemPrompt(type, 'json');
     const userPrompt = buildUserPrompt({ text, criteria, type });
 
     const params: Record<string, unknown> = {
       model,
       messages: [
-        { role: 'system', content: JSON_SYSTEM_PROMPT },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       response_format: {
@@ -179,8 +182,6 @@ export class OpenAIProvider implements AIProvider {
         ? {
             inputTokens: completion.usage.prompt_tokens,
             outputTokens: completion.usage.completion_tokens,
-            cacheReadTokens: 0,
-            cacheCreationTokens: 0,
           }
         : undefined,
     };

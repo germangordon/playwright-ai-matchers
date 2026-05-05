@@ -1,6 +1,6 @@
 {
   "name": "playwright-ai-matchers",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Provider-agnostic AI matchers for Playwright's expect() — ships with Claude Opus 4.7 (prompt caching + adaptive thinking), OpenAI, and Gemini adapters",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -35,11 +35,15 @@
   "license": "MIT",
   "author": "German Gordon",
   "peerDependencies": {
+    "@anthropic-ai/sdk": ">=0.85.0",
     "@google/generative-ai": ">=0.21.0",
     "@playwright/test": ">=1.40.0",
     "openai": ">=4.60.0"
   },
   "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
     "openai": {
       "optional": true
     },
@@ -47,16 +51,16 @@
       "optional": true
     }
   },
-  "dependencies": {
-    "@anthropic-ai/sdk": ">=0.85.0"
-  },
   "devDependencies": {
+    "@anthropic-ai/claude-code": "^2.1.128",
+    "@anthropic-ai/sdk": "^0.94.0",
     "@google/generative-ai": "^0.21.0",
     "@playwright/test": "^1.49.0",
     "@types/node": "^22.0.0",
     "openai": "^4.77.0",
     "playwright-ai-matchers": "file:.",
     "tsx": "^4.21.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-language-server": "^5.1.3"
   }
 }

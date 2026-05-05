@@ -5,8 +5,9 @@ import type {
   EvalType,
   EvaluateOptions,
 } from './base';
-import { JSON_SYSTEM_PROMPT, buildUserPrompt } from '../prompts';
+import { buildSystemPrompt, buildUserPrompt } from '../prompts';
 import { AIProviderError } from '../errors';
+import { extractJson } from '../utils/extractJson';
 
 // Minimal structural types — the real SDK is loaded dynamically so users who
 // don't use Gemini are not forced to install @google/generative-ai.
@@ -79,6 +80,7 @@ const DEFAULT_EFFORT_MODEL_MAP: Record<Effort, string> = {
 };
 
 export class GeminiProvider implements AIProvider {
+  readonly id: string;
   private readonly apiKey: string | undefined;
   private readonly explicitClient: GeminiClient | undefined;
   private readonly overrideModel: string | undefined;
@@ -98,6 +100,7 @@ export class GeminiProvider implements AIProvider {
       ...DEFAULT_EFFORT_MODEL_MAP,
       ...(options.effortModelMap ?? {}),
     };
+    this.id = `gemini:${this.overrideModel ?? 'effort-mapped'}`;
 
     if (!this.explicitClient && !this.apiKey) {
       throw new AIProviderError(
@@ -115,6 +118,7 @@ export class GeminiProvider implements AIProvider {
     const effort = options.effort ?? this.defaultEffort;
     const model = this.overrideModel ?? this.effortModelMap[effort];
     const client = await this.resolveClient();
+    const systemPrompt = buildSystemPrompt(type, 'json');
     const userPrompt = buildUserPrompt({ text, criteria, type });
 
     // Gemini 2.0 thinking models are preview-only and don't accept
@@ -132,7 +136,7 @@ export class GeminiProvider implements AIProvider {
 
     const modelInstance = client.getGenerativeModel({
       model,
-      systemInstruction: JSON_SYSTEM_PROMPT,
+      systemInstruction: systemPrompt,
       generationConfig,
     });
 
@@ -188,8 +192,6 @@ export class GeminiProvider implements AIProvider {
         ? {
             inputTokens: usage.promptTokenCount ?? 0,
             outputTokens: usage.candidatesTokenCount ?? 0,
-            cacheReadTokens: 0,
-            cacheCreationTokens: 0,
           }
         : undefined,
     };
@@ -216,12 +218,4 @@ async function loadGeminiClient(apiKey: string): Promise<GeminiClient> {
     );
   }
   return new mod.GoogleGenerativeAI(apiKey);
-}
-
-// Gemini occasionally wraps JSON in ```json fences even when responseMimeType
-// is application/json (most commonly on preview thinking models). Strip them.
-function extractJson(text: string): string {
-  const trimmed = text.trim();
-  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return fenceMatch ? fenceMatch[1] : trimmed;
 }
